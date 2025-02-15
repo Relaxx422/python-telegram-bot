@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 
-import contextlib
 import datetime as dtm
 from copy import copy
 
@@ -89,6 +88,7 @@ from tests.auxil.bot_method_checks import (
     check_shortcut_signature,
 )
 from tests.auxil.build_messages import make_message
+from tests.auxil.dummy_objects import get_dummy_object_json_dict
 from tests.auxil.pytest_classes import PytestExtBot, PytestMessage
 from tests.auxil.slots import mro_slots
 
@@ -447,18 +447,7 @@ class TestMessageWithoutRequest(MessageTestBase):
     async def check_quote_parsing(
         message: Message, method, bot_method_name: str, args, monkeypatch
     ):
-        """Used in testing reply_* below. Makes sure that quote and do_quote are handled
-        correctly
-        """
-        with contextlib.suppress(TypeError):
-            # for newer methods that don't have the deprecated argument
-            with pytest.raises(ValueError, match="`quote` and `do_quote` are mutually exclusive"):
-                await method(*args, quote=True, do_quote=True)
-
-            # for newer methods that don't have the deprecated argument
-            with pytest.warns(PTBDeprecationWarning, match="`quote` parameter is deprecated"):
-                await method(*args, quote=True)
-
+        """Used in testing reply_* below. Makes sure that do_quote is handled correctly"""
         with pytest.raises(
             ValueError,
             match="`reply_to_message_id` and `reply_parameters` are mutually exclusive.",
@@ -470,17 +459,13 @@ class TestMessageWithoutRequest(MessageTestBase):
 
         monkeypatch.setattr(message.get_bot(), bot_method_name, make_assertion)
 
-        for param in ("quote", "do_quote"):
-            with contextlib.suppress(TypeError):
-                # for newer methods that don't have the deprecated argument
-                chat_id, reply_parameters = await method(*args, **{param: True})
-                if chat_id != message.chat.id:
-                    pytest.fail(f"chat_id is {chat_id} but should be {message.chat.id}")
-                if reply_parameters is None or reply_parameters.message_id != message.message_id:
-                    pytest.fail(
-                        f"reply_parameters is {reply_parameters} "
-                        "but should be {message.message_id}"
-                    )
+        for value in (True, False):
+            chat_id, reply_parameters = await method(*args, do_quote=value)
+            if chat_id != message.chat.id:
+                pytest.fail(f"chat_id is {chat_id} but should be {message.chat.id}")
+            expected = ReplyParameters(message.message_id) if value else None
+            if reply_parameters != expected:
+                pytest.fail(f"reply_parameters is {reply_parameters} but should be {expected}")
 
         input_chat_id = object()
         input_reply_parameters = ReplyParameters(message_id=1, chat_id=42)
@@ -591,9 +576,9 @@ class TestMessageWithoutRequest(MessageTestBase):
     def test_de_json_localization(self, offline_bot, raw_bot, tz_bot):
         json_dict = {
             "message_id": 12,
-            "from_user": None,
+            "from_user": get_dummy_object_json_dict("User"),
             "date": int(dtm.datetime.now().timestamp()),
-            "chat": None,
+            "chat": get_dummy_object_json_dict("Chat"),
             "edit_date": int(dtm.datetime.now().timestamp()),
         }
 
@@ -1450,7 +1435,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_text,
             Bot.send_message,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1492,7 +1477,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_markdown,
             Bot.send_message,
             ["chat_id", "parse_mode", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1541,7 +1526,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_markdown_v2,
             Bot.send_message,
             ["chat_id", "parse_mode", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1593,7 +1578,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_html,
             Bot.send_message,
             ["chat_id", "parse_mode", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1630,7 +1615,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_media_group,
             Bot.send_media_group,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1672,7 +1657,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_photo,
             Bot.send_photo,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1706,7 +1691,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_audio,
             Bot.send_audio,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1740,7 +1725,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_document,
             Bot.send_document,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1774,7 +1759,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_animation,
             Bot.send_animation,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1808,7 +1793,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_sticker,
             Bot.send_sticker,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1842,7 +1827,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_video,
             Bot.send_video,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1876,7 +1861,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_video_note,
             Bot.send_video_note,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1910,7 +1895,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_voice,
             Bot.send_voice,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1944,7 +1929,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_location,
             Bot.send_location,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -1978,7 +1963,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_venue,
             Bot.send_venue,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -2012,7 +1997,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_contact,
             Bot.send_contact,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -2047,7 +2032,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_poll,
             Bot.send_poll,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -2081,7 +2066,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_dice,
             Bot.send_dice,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -2153,7 +2138,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_game,
             Bot.send_game,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -2196,7 +2181,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_invoice,
             Bot.send_invoice,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(
@@ -2325,7 +2310,7 @@ class TestMessageWithoutRequest(MessageTestBase):
             Message.reply_copy,
             Bot.copy_message,
             ["chat_id", "reply_to_message_id", "business_connection_id"],
-            ["quote", "do_quote", "reply_to_message_id"],
+            ["do_quote", "reply_to_message_id"],
             annotation_overrides={"message_thread_id": (ODVInput[int], DEFAULT_NONE)},
         )
         assert await check_shortcut_call(message.copy, message.get_bot(), "copy_message")

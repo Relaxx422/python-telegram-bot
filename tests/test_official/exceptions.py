@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains exceptions to our API compared to the official API."""
+import datetime as dtm
 
 from telegram import Animation, Audio, Document, Gift, PhotoSize, Sticker, Video, VideoNote, Voice
 from tests.test_official.helpers import _get_params_base
@@ -54,6 +55,12 @@ class ParamTypeCheckingExceptions:
         "replace_sticker_in_set": {
             "old_sticker$": Sticker,
         },
+        # The underscore will match any method
+        r"\w+_[\w_]+": {
+            "duration": dtm.timedelta,
+            r"\w+_period": dtm.timedelta,
+            "cache_time": dtm.timedelta,
+        },
     }
 
     # TODO: Look into merging this with COMPLEX_TYPES
@@ -65,8 +72,6 @@ class ParamTypeCheckingExceptions:
         ("keyboard", True): "KeyboardButton",  # + sequence[sequence[str]]
         ("reaction", False): "ReactionType",  # + str
         ("options", False): "InputPollOption",  # + str
-        # TODO: Deprecated and will be corrected (and removed) in next major PTB version:
-        ("file_hashes", True): "list[str]",
     }
 
     # Special cases for other parameters that accept more types than the official API, and are
@@ -104,11 +109,6 @@ class ParamTypeCheckingExceptions:
 
     # These classes' params are all ODVInput, so we ignore them in the defaults type checking.
     IGNORED_DEFAULTS_CLASSES = {"LinkPreviewOptions"}
-
-    # TODO: Remove this in v22 when it becomes a datetime (also remove from arg_type_checker.py)
-    DATETIME_EXCEPTIONS = {
-        "file_date",
-    }
 
 
 # Arguments *added* to the official API

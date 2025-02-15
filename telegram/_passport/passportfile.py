@@ -18,13 +18,13 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains an object that represents a Encrypted PassportFile."""
 
+import datetime as dtm
 from typing import TYPE_CHECKING, Optional
 
 from telegram._telegramobject import TelegramObject
+from telegram._utils.datetime import extract_tzinfo_from_defaults, from_timestamp
 from telegram._utils.defaultvalue import DEFAULT_NONE
 from telegram._utils.types import JSONDict, ODVInput
-from telegram._utils.warnings import warn
-from telegram.warnings import PTBDeprecationWarning
 
 if TYPE_CHECKING:
     from telegram import Bot, File, FileCredentials
@@ -45,11 +45,11 @@ class PassportFile(TelegramObject):
             is supposed to be the same over time and for different bots.
             Can't be used to download or reuse the file.
         file_size (:obj:`int`): File size in bytes.
-        file_date (:obj:`int`): Unix time when the file was uploaded.
+        file_date (:class:`datetime.datetime`): Time when the file was uploaded.
 
-            .. deprecated:: 20.6
-                This argument will only accept a datetime instead of an integer in future
-                major versions.
+            .. versionchanged:: NEXT.VERSION
+                Accepts only :class:`datetime.datetime` instead of :obj:`int`.
+                |datetime_localization|
 
     Attributes:
         file_id (:obj:`str`): Identifier for this file, which can be used to download
@@ -58,11 +58,16 @@ class PassportFile(TelegramObject):
             is supposed to be the same over time and for different bots.
             Can't be used to download or reuse the file.
         file_size (:obj:`int`): File size in bytes.
+        file_date (:class:`datetime.datetime`): Time when the file was uploaded.
+
+            .. versionchanged:: NEXT.VERSION
+                Returns :class:`datetime.datetime` instead of :obj:`int`.
+                |datetime_localization|
     """
 
     __slots__ = (
         "_credentials",
-        "_file_date",
+        "file_date",
         "file_id",
         "file_size",
         "file_unique_id",
@@ -72,7 +77,7 @@ class PassportFile(TelegramObject):
         self,
         file_id: str,
         file_unique_id: str,
-        file_date: int,
+        file_date: dtm.datetime,
         file_size: int,
         credentials: Optional["FileCredentials"] = None,
         *,
@@ -84,7 +89,7 @@ class PassportFile(TelegramObject):
         self.file_id: str = file_id
         self.file_unique_id: str = file_unique_id
         self.file_size: int = file_size
-        self._file_date: int = file_date
+        self.file_date: dtm.datetime = file_date
         # Optionals
 
         self._credentials: Optional[FileCredentials] = credentials
@@ -93,33 +98,21 @@ class PassportFile(TelegramObject):
 
         self._freeze()
 
-    def to_dict(self, recursive: bool = True) -> JSONDict:
-        """See :meth:`telegram.TelegramObject.to_dict` for details."""
-        data = super().to_dict(recursive)
-        data["file_date"] = self._file_date
-        return data
+    @classmethod
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "PassportFile":
+        """See :meth:`telegram.TelegramObject.de_json`."""
+        data = cls._parse_data(data)
 
-    @property
-    def file_date(self) -> int:
-        """:obj:`int`: Unix time when the file was uploaded.
+        # Get the local timezone from the bot if it has defaults
+        loc_tzinfo = extract_tzinfo_from_defaults(bot)
+        data["file_date"] = from_timestamp(data.get("file_date"), tzinfo=loc_tzinfo)
 
-        .. deprecated:: 20.6
-            This attribute will return a datetime instead of a integer in future major versions.
-        """
-        warn(
-            PTBDeprecationWarning(
-                "20.6",
-                "The attribute `file_date` will return a datetime instead of an integer in future"
-                " major versions.",
-            ),
-            stacklevel=2,
-        )
-        return self._file_date
+        return super().de_json(data=data, bot=bot)
 
     @classmethod
     def de_json_decrypted(
-        cls, data: Optional[JSONDict], bot: Optional["Bot"], credentials: "FileCredentials"
-    ) -> Optional["PassportFile"]:
+        cls, data: JSONDict, bot: Optional["Bot"], credentials: "FileCredentials"
+    ) -> "PassportFile":
         """Variant of :meth:`telegram.TelegramObject.de_json` that also takes into account
         passport credentials.
 
@@ -141,9 +134,6 @@ class PassportFile(TelegramObject):
         """
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
         data["credentials"] = credentials
 
         return super().de_json(data=data, bot=bot)
@@ -151,10 +141,10 @@ class PassportFile(TelegramObject):
     @classmethod
     def de_list_decrypted(
         cls,
-        data: Optional[list[JSONDict]],
+        data: list[JSONDict],
         bot: Optional["Bot"],
         credentials: list["FileCredentials"],
-    ) -> tuple[Optional["PassportFile"], ...]:
+    ) -> tuple["PassportFile", ...]:
         """Variant of :meth:`telegram.TelegramObject.de_list` that also takes into account
         passport credentials.
 
@@ -179,16 +169,12 @@ class PassportFile(TelegramObject):
             tuple[:class:`telegram.PassportFile`]:
 
         """
-        if not data:
-            return ()
-
         return tuple(
             obj
             for obj in (
                 cls.de_json_decrypted(passport_file, bot, credentials[i])
                 for i, passport_file in enumerate(data)
             )
-            if obj is not None
         )
 
     async def get_file(
