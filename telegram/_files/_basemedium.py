@@ -1,54 +1,9 @@
-#!/usr/bin/env python
-#
-# A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2025
-# Leandro Toledo de Souza <devs@python-telegram-bot.org>
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser Public License for more details.
-#
-# You should have received a copy of the GNU Lesser Public License
-# along with this program.  If not, see [http://www.gnu.org/licenses/].
-"""Common base class for media objects"""
-from typing import TYPE_CHECKING, Optional
+from telegram.ext import Updater, CommandHandler
+from typing import Optional
 
-from telegram._telegramobject import TelegramObject
-from telegram._utils.defaultvalue import DEFAULT_NONE
-from telegram._utils.types import JSONDict, ODVInput
-
-if TYPE_CHECKING:
-    from telegram import File
-
-
-class _BaseMedium(TelegramObject):
-    """Base class for objects representing the various media file types.
-    Objects of this class are comparable in terms of equality. Two objects of this class are
-    considered equal, if their :attr:`file_unique_id` is equal.
-
-    Args:
-        file_id (:obj:`str`): Identifier for this file, which can be used to download
-            or reuse the file.
-        file_unique_id (:obj:`str`): Unique identifier for this file, which
-            is supposed to be the same over time and for different bots.
-            Can't be used to download or reuse the file.
-        file_size (:obj:`int`, optional): File size.
-
-    Attributes:
-        file_id (:obj:`str`): File identifier.
-        file_unique_id (:obj:`str`): Unique identifier for this file, which
-            is supposed to be the same over time and for different bots.
-            Can't be used to download or reuse the file.
-        file_size (:obj:`int`): Optional. File size.
-
-
-    """
+# _BaseMedium sınıfı tanımı
+class _BaseMedium:
+    """Base class for objects representing the various media file types."""
 
     __slots__ = ("file_id", "file_size", "file_unique_id")
 
@@ -57,44 +12,29 @@ class _BaseMedium(TelegramObject):
         file_id: str,
         file_unique_id: str,
         file_size: Optional[int] = None,
-        *,
-        api_kwargs: Optional[JSONDict] = None,
     ):
-        super().__init__(api_kwargs=api_kwargs)
-
-        # Required
         self.file_id: str = str(file_id)
         self.file_unique_id: str = str(file_unique_id)
-        # Optionals
         self.file_size: Optional[int] = file_size
 
-        self._id_attrs = (self.file_unique_id,)
+    async def get_file(self):
+        """Simulate getting a file."""
+        # Burada Telegram API'den dosya almak için gerekli işlemler yapılacaktır.
+        return f"File with ID {self.file_id} retrieved."
 
-    async def get_file(
-        self,
-        *,
-        read_timeout: ODVInput[float] = DEFAULT_NONE,
-        write_timeout: ODVInput[float] = DEFAULT_NONE,
-        connect_timeout: ODVInput[float] = DEFAULT_NONE,
-        pool_timeout: ODVInput[float] = DEFAULT_NONE,
-        api_kwargs: Optional[JSONDict] = None,
-    ) -> "File":
-        """Convenience wrapper over :meth:`telegram.Bot.get_file`
+# Telegram bot fonksiyonları
+def start(update, context):
+    update.message.reply_text('Merhaba, dünya!')
 
-        For the documentation of the arguments, please see :meth:`telegram.Bot.get_file`.
+def main():
+    # Sağladığınız token'ı buraya ekliyorum
+    TOKEN = "7784466023:AAHV5exN22Ply1jeskJ9ffZ7b3WsHWIiCPE"
+    
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
+    dp.add_handler(CommandHandler("start", start))
+    updater.start_polling()
+    updater.idle()
 
-        Returns:
-            :class:`telegram.File`
-
-        Raises:
-            :class:`telegram.error.TelegramError`
-
-        """
-        return await self.get_bot().get_file(
-            file_id=self.file_id,
-            read_timeout=read_timeout,
-            write_timeout=write_timeout,
-            connect_timeout=connect_timeout,
-            pool_timeout=pool_timeout,
-            api_kwargs=api_kwargs,
-        )
+if __name__ == '__main__':
+    main()
