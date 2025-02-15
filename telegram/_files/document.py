@@ -1,68 +1,26 @@
-#!/usr/bin/env python
-#
-# A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2025
-# Leandro Toledo de Souza <devs@python-telegram-bot.org>
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Lesser Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU Lesser Public License for more details.
-#
-# You should have received a copy of the GNU Lesser Public License
-# along with this program.  If not, see [http://www.gnu.org/licenses/].
-"""This module contains an object that represents a Telegram Document."""
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext, MessageHandler, Filters
 from typing import Optional
 
-from telegram._files._basethumbedmedium import _BaseThumbedMedium
-from telegram._files.photosize import PhotoSize
-from telegram._utils.types import JSONDict
+# _BaseMedium sınıfı tanımı
+class _BaseMedium:
+    """Base class for objects representing various media file types."""
 
+    __slots__ = ("file_id", "file_unique_id", "file_size")
 
-class Document(_BaseThumbedMedium):
-    """This object represents a general file
-    (as opposed to photos, voice messages and audio files).
+    def __init__(self, file_id: str, file_unique_id: str, file_size: Optional[int] = None):
+        self.file_id: str = file_id
+        self.file_unique_id: str = file_unique_id
+        self.file_size: Optional[int] = file_size
 
-    Objects of this class are comparable in terms of equality. Two objects of this class are
-    considered equal, if their :attr:`file_unique_id` is equal.
+    def __str__(self):
+        return f"BaseMedium(file_id={self.file_id}, file_unique_id={self.file_unique_id}, file_size={self.file_size})"
 
-    .. versionchanged:: 20.5
-      |removed_thumb_note|
+# Document sınıfı tanımı
+class Document(_BaseMedium):
+    """This object represents a general file."""
 
-    Args:
-        file_id (:obj:`str`): Identifier for this file, which can be used to download
-            or reuse the file.
-        file_unique_id (:obj:`str`): Unique identifier for this file, which is supposed to be
-            the same over time and for different bots. Can't be used to download or reuse the file.
-        file_name (:obj:`str`, optional): Original filename as defined by the sender.
-        mime_type (:obj:`str`, optional): MIME type of the file as defined by the sender.
-        file_size (:obj:`int`, optional): File size in bytes.
-        thumbnail (:class:`telegram.PhotoSize`, optional): Document thumbnail as defined by the
-            sender.
-
-            .. versionadded:: 20.2
-
-    Attributes:
-        file_id (:obj:`str`): Identifier for this file, which can be used to download
-            or reuse the file.
-        file_unique_id (:obj:`str`): Unique identifier for this file, which is supposed to be
-            the same over time and for different bots. Can't be used to download or reuse the file.
-        file_name (:obj:`str`): Optional. Original filename as defined by the sender.
-        mime_type (:obj:`str`): Optional. MIME type of the file as defined by the sender.
-        file_size (:obj:`int`): Optional. File size in bytes.
-        thumbnail (:class:`telegram.PhotoSize`): Optional. Document thumbnail as defined by the
-            sender.
-
-            .. versionadded:: 20.2
-
-    """
-
-    __slots__ = ("file_name", "mime_type")
+    __slots__ = ("file_name", "mime_type", "thumbnail")
 
     def __init__(
         self,
@@ -71,18 +29,44 @@ class Document(_BaseThumbedMedium):
         file_name: Optional[str] = None,
         mime_type: Optional[str] = None,
         file_size: Optional[int] = None,
-        thumbnail: Optional[PhotoSize] = None,
-        *,
-        api_kwargs: Optional[JSONDict] = None,
+        thumbnail: Optional[object] = None,
     ):
-        super().__init__(
-            file_id=file_id,
-            file_unique_id=file_unique_id,
-            file_size=file_size,
-            thumbnail=thumbnail,
-            api_kwargs=api_kwargs,
-        )
-        with self._unfrozen():
-            # Optional
-            self.mime_type: Optional[str] = mime_type
-            self.file_name: Optional[str] = file_name
+        super().__init__(file_id, file_unique_id, file_size)
+        self.file_name: Optional[str] = file_name
+        self.mime_type: Optional[str] = mime_type
+        self.thumbnail: Optional[object] = thumbnail
+
+    def __str__(self):
+        return (f"Document(file_id={self.file_id}, file_unique_id={self.file_unique_id}, "
+                f"file_name={self.file_name}, mime_type={self.mime_type}, file_size={self.file_size})")
+
+# Bot komutları
+def start(update: Update, context: CallbackContext):
+    update.message.reply_text('Merhaba! Bir belge gönderin ve onu yöneteceğim.')
+
+def handle_document(update: Update, context: CallbackContext):
+    document = update.message.document
+    doc_obj = Document(
+        file_id=document.file_id,
+        file_unique_id=document.file_unique_id,
+        file_name=document.file_name,
+        mime_type=document.mime_type,
+        file_size=document.file_size
+    )
+    update.message.reply_text(f"Belge alındı: {doc_obj}")
+
+def main():
+    # Sağladığınız token'ı buraya ekliyorum
+    TOKEN = "7784466023:AAHV5exN22Ply1jeskJ9ffZ7b3WsHWIiCPE"
+    
+    updater = Updater(TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(MessageHandler(Filters.document, handle_document))
+
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
