@@ -26,8 +26,10 @@ jobs:
           persist-credentials: true
       - name: Check PR Title
         id: check_title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: | # zizmor: ignore[template-injection]
-          if [[ "$(echo "${{ github.event.pull_request.title }}" | tr '[:upper:]' '[:lower:]')" =~ ^bump\ version\ to\ .* ]]; then
+          if [[ "$(echo "$PR_TITLE" | tr '[:upper:]' '[:lower:]')" =~ ^bump\ version\ to\ .* ]]; then
             echo "COMMIT_AND_PUSH=false" >> $GITHUB_OUTPUT
             echo "IS_RELEASE_PR=true" >> $GITHUB_OUTPUT
           else
